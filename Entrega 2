@@ -284,7 +284,7 @@ VALUES
 CREATE OR REPLACE VIEW ClientesMasFrecuentes AS
 SELECT 
     Clientes.id_cliente,
-    CONCAT(Clientes.nombre, ' ', Clientes.apellido) AS nombre_cliente,
+    CONCAT(Clientes.nombre, " ", Clientes.apellido) AS nombre_cliente,
     COUNT(Ordenes.id_orden) AS total_ordenes
 FROM
     Clientes
