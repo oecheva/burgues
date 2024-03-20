@@ -1,0 +1,104 @@
+CREATE SCHEMA burgues;
+
+USE burgues;
+
+-- CREAR TABLAS
+
+CREATE TABLE Clientes (
+	id_cliente INT AUTO_INCREMENT PRIMARY KEY,
+	nombre VARCHAR(30) not null,
+    apellido VARCHAR(30) not null,
+	direc VARCHAR(100) NOT NULL,
+	nro_telf VARCHAR(20) NOT NULL);
+    
+    CREATE TABLE Ordenes (
+	id_orden INT AUTO_INCREMENT PRIMARY KEY,
+	id_cliente INT not null,
+    fecha DATETIME not null,
+	estado VARCHAR(20) NOT NULL);
+    
+    CREATE TABLE Productos (
+	id_producto INT AUTO_INCREMENT PRIMARY KEY,
+	nombre VARCHAR(30) not null,
+    descripcion VARCHAR(200) not null,
+	Precio DECIMAL(7,2) NOT NULL);
+    
+    CREATE TABLE Empleados (
+	id_empleado INT AUTO_INCREMENT PRIMARY KEY,
+	nombre VARCHAR(30) not null,
+    cargo VARCHAR(30) not null,
+	salario DECIMAL(7,2) NOT NULL);
+        
+    CREATE TABLE DetalleOrdenes (
+	id_detalle INT AUTO_INCREMENT PRIMARY KEY,
+	id_orden INT not null,
+    id_producto INT not null,
+    id_empleado INT not null,
+	cantidad INT NOT NULL);
+    
+    CREATE TABLE Inventario (
+	id_inventario INT AUTO_INCREMENT PRIMARY KEY,
+    insumo VARCHAR(30) not null,
+	id_proveedor INT not null,
+    medida VARCHAR(20) not null,
+    stock DECIMAL(7,2) not null);
+       
+    CREATE TABLE Recetas (
+	id_receta INT AUTO_INCREMENT PRIMARY KEY,
+	id_producto INT not null,
+    id_inventario INT not null,
+    insumo VARCHAR(30) not null,
+	cantidad DECIMAL(7,2) NOT NULL);
+    
+    CREATE TABLE Proveedores (
+	id_proveedor INT AUTO_INCREMENT PRIMARY KEY,
+	nombre VARCHAR(50) not null,
+    Contacto VARCHAR(50) not null,
+    Telefono VARCHAR(20) not null,
+	correo VARCHAR(50) NOT NULL,
+    insumo VARCHAR(30) not null);
+    
+-- Creamos tabla de auditoría
+
+CREATE TABLE Audit_Inventario (
+	id_audit INT AUTO_INCREMENT PRIMARY KEY,
+    accion VARCHAR(20),
+    id_inventario INT,
+    insumo VARCHAR(30),
+    medida VARCHAR(20),
+    stock DECIMAL(7,2),
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+
+ALTER TABLE Audit_Inventario
+ADD CONSTRAINT fk_auditoria_inventario
+FOREIGN KEY (id_inventario) REFERENCES inventario(id_inventario);
+    
+-- CREAR RELACIONES
+
+ALTER TABLE ordenes
+ADD CONSTRAINT fk_ordenes_cliente
+FOREIGN KEY (id_cliente) REFERENCES Clientes(id_cliente);
+
+ALTER TABLE DetalleOrdenes
+ADD CONSTRAINT fk_detalleordenes_orden
+FOREIGN KEY (id_orden) REFERENCES ordenes(id_orden);
+
+ALTER TABLE DetalleOrdenes
+ADD CONSTRAINT fk_detalleordenes_producto
+FOREIGN KEY (id_producto) REFERENCES Productos(id_producto);
+
+ALTER TABLE DetalleOrdenes
+ADD CONSTRAINT fk_detalleordenes_empleados
+FOREIGN KEY (id_empleado) REFERENCES empleados(id_empleado);
+
+ALTER TABLE Inventario
+ADD CONSTRAINT fk_inventario_proveedor
+FOREIGN KEY (id_proveedor) REFERENCES proveedores(id_proveedor);
+
+ALTER TABLE recetas
+ADD CONSTRAINT fk_recetas_producto
+FOREIGN KEY (id_producto) REFERENCES productos(id_producto);
+
+ALTER TABLE recetas
+ADD CONSTRAINT fk_recetas_inventario
+FOREIGN KEY (id_inventario) REFERENCES inventario(id_inventario);
