@@ -1,0 +1,173 @@
+-- OBJETOS DE LA BASE DE DATOS
+
+USE burgues;
+
+-- --------------------------------------------------------------------------------------
+-- -- VISTAS -- --
+
+-- VISTA CLIENTES QUE MÁS COMPRAN
+CREATE OR REPLACE VIEW vw_clientes_frecuentes AS
+SELECT 
+    Clientes.id_cliente,
+    CONCAT(Clientes.nombre, ' ', Clientes.apellido) AS nombre_cliente,
+    COUNT(Ordenes.id_orden) AS total_ordenes
+FROM
+    Clientes
+        JOIN Ordenes ON Clientes.id_cliente = Ordenes.id_cliente
+GROUP BY Clientes.id_cliente, nombre_cliente
+ORDER BY total_ordenes DESC
+LIMIT 5;
+
+-- SELECT * FROM vw_clientes_frecuentes;
+
+-- VISTA RENDIMIENTO DE EMPLEADOS
+CREATE OR REPLACE VIEW vw_rendimiento_empleados AS
+SELECT 
+    Empleados.id_empleado,
+    Empleados.nombre AS nombre_empleado,
+    COUNT(DetalleOrdenes.id_orden) AS total_ordenes_atendidas
+FROM
+    Empleados
+        JOIN DetalleOrdenes ON Empleados.id_empleado = DetalleOrdenes.id_empleado
+GROUP BY Empleados.id_empleado, nombre_empleado
+ORDER BY total_ordenes_atendidas DESC;
+
+-- SELECT * FROM vw_rendimiento_empleados;
+
+-- VISTA POPULARIDAD DE PRODUCTOS
+
+CREATE OR REPLACE VIEW vw_popularidad_productos AS
+SELECT 
+    Productos.id_producto,
+    Productos.nombre AS nombre_producto,
+    SUM(DetalleOrdenes.cantidad) AS total_unidades_vendidas
+FROM
+    Productos
+        JOIN DetalleOrdenes ON Productos.id_producto = DetalleOrdenes.id_producto
+GROUP BY Productos.id_producto, nombre_producto
+ORDER BY total_unidades_vendidas DESC;
+
+-- SELECT * FROM vw_popularidad_productos;
+
+-- VISTA INVENTARIO DISPONIBLE
+
+CREATE OR REPLACE VIEW Vw_Inventario_Ordenado AS
+SELECT *
+FROM Inventario
+ORDER BY stock DESC;
+
+-- SELECT * FROM Vw_Inventario_Ordenado;
+
+-- Vista que muestra un resumen de la orden
+
+CREATE OR REPLACE VIEW Vw_Detalle_Pedido AS
+SELECT o.id_orden AS id_pedido,
+       CONCAT(c.nombre, ' ', c.apellido) AS nombre_cliente,
+       p.nombre AS producto,
+       d.cantidad,
+       p.Precio AS precio
+FROM Ordenes o
+JOIN Clientes c ON o.id_cliente = c.id_cliente
+JOIN DetalleOrdenes d ON o.id_orden = d.id_orden
+JOIN Productos p ON d.id_producto = p.id_producto
+ORDER BY o.id_orden ASC;
+
+-- SELECT * FROM Vw_Detalle_Pedido;
+
+-- --------------------------------------------------------------------------------------
+-- -- FUNCIONES -- --
+
+-- FUNCIÓN: CALCULAR TOTAL DE UN PEDIDO
+
+DELIMITER $$
+CREATE FUNCTION fn_talcular_total_pedido(precio INT, cantidad INT) RETURNS DECIMAL (7,2)
+NO SQL
+BEGIN
+DECLARE montototal DECIMAL (7,2);
+SET montototal = (precio * cantidad);
+RETURN montototal;
+END;
+$$
+
+-- SELECT fn_talcular_total_pedido(20,2) AS TotalPedido;
+
+
+-- FUNCIÓN: MOSTRAR STOCK DE UN PRODUCTO
+
+DELIMITER //
+CREATE FUNCTION fn_stock_insumo(producto varchar(20)) Returns INT
+DETERMINISTIC
+BEGIN
+DECLARE resultado INT;
+SET resultado = (SELECT SUM(stock) FROM inventario where insumo = producto);
+RETURN resultado; 
+END;
+//
+
+-- SELECT fn_stock_insumo("pan") AS TotalStock;
+
+
+-- --------------------------------------------------------------------------------------
+-- -- STORED PROCEDURES -- --
+
+-- SP Inserta Nuevo Cliente
+DELIMITER //
+CREATE PROCEDURE SP_Insertar_Cliente (
+    IN p_nombre VARCHAR(30),
+    IN p_apellido VARCHAR(30),
+    IN p_direc VARCHAR(100),
+    IN p_nro_telf VARCHAR(20)
+)
+BEGIN
+    INSERT INTO Clientes (nombre, apellido, direc, nro_telf)
+    VALUES (p_nombre, p_apellido, p_direc, p_nro_telf);
+END; 
+//
+
+-- SP Registra nueva Orden
+DELIMITER $$
+CREATE PROCEDURE SP_Crear_Orden (
+    IN p_id_cliente INT,
+    IN p_fecha DATETIME,
+    IN p_estado VARCHAR(20)
+)
+BEGIN
+    INSERT INTO Ordenes (id_cliente, fecha, estado)
+    VALUES (p_id_cliente, p_fecha, p_estado);
+END ;
+$$
+
+
+-- --------------------------------------------------------------------------------------
+-- -- TRIGGERS -- --
+
+-- TR para actualizar Stock
+DELIMITER $$
+CREATE TRIGGER TR_actualizar_stock
+AFTER INSERT ON DetalleOrdenes
+FOR EACH ROW
+BEGIN
+    DECLARE cantidad_descontar DECIMAL(7,2);
+    
+    -- Obtener la cantidad de unidades del producto en el detalle de orden
+    SELECT cantidad INTO cantidad_descontar
+    FROM DetalleOrdenes
+    WHERE id_detalle = NEW.id_detalle;
+    
+    -- Actualizar el stock del inventario
+    UPDATE Inventario
+    SET stock = stock - cantidad_descontar
+    WHERE id_inventario = (SELECT id_inventario FROM Recetas WHERE id_producto = NEW.id_producto);
+END;
+$$
+
+-- TR para registrar cambios de inventario
+DELIMITER $$
+
+CREATE TRIGGER TR_Auditoria_inventario
+AFTER INSERT ON Inventario
+FOR EACH ROW
+BEGIN
+    INSERT INTO Audit_Inventario (accion, id_inventario, insumo, medida, stock)
+    VALUES ('INSERT', NEW.id_inventario, NEW.insumo, NEW.medida, NEW.stock);
+END$$
